@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Numeral Matching Set</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: 'Century Gothic', 'Trebuchet MS', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.container {
+  text-align: center;
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 1400px;
+}
+
+h1 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 32px;
+}
+
+.slide {
+  width: 100%;
+  height: 700px;
+  position: relative;
+  background: #f9f9f9;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 3px solid #667eea;
+  margin: 20px 0;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #000;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.numeral {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  font-size: 400px;
+  font-weight: bold;
+  color: #2E75B6;
+  text-shadow: 2px 3px 3px rgba(0, 0, 0, 0.25);
+  line-height: 1;
+}
+
+.controls {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+button {
+  font-size: 18px;
+  padding: 12px 30px;
+  margin: 0 10px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: 'Century Gothic', 'Trebuchet MS', sans-serif;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+button:active {
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Does the numeral match the number of dots?</h1>
+  
+  <div class="slide" id="slide"></div>
+  
+  <div class="controls">
+    <button onclick="start()">▶ Start</button>
+    <button onclick="pause()">⏸ Pause</button>
+  </div>
+</div>
+
+<script>
+const slide = document.getElementById("slide");
+
+let timer = null;
+let running = false;
+let sequenceCounter = 0;
+
+const dotSizes = [50, 65, 80, 95, 110, 120, 130];
+
+function generateDotPositions(count) {
+  const positions = [];
+  const slideWidth = slide.offsetWidth;
+  const slideHeight = slide.offsetHeight - 200;
+  const minDistance = 200;
+  
+  for (let i = 0; i < count; i++) {
+    let x, y, valid;
+    let attempts = 0;
+    
+    do {
+      valid = true;
+      attempts++;
+      x = 80 + Math.random() * (slideWidth - 160);
+      y = 80 + Math.random() * (slideHeight - 160);
+      
+      // Check distance from all existing positions
+      for (let pos of positions) {
+        const dx = x - pos.x;
+        const dy = y - pos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+    } while (!valid && attempts < 100);
+    
+    if (valid) {
+      const size = dotSizes[i % dotSizes.length];
+      positions.push({ x, y, size });
+    }
+  }
+  
+  return positions;
+}
+
+function clearSlide() {
+  slide.innerHTML = "";
+}
+
+function displayScene(count, numeral) {
+  clearSlide();
+  
+  const positions = generateDotPositions(count);
+  
+  // Display dots at calculated positions
+  for (let i = 0; i < positions.length; i++) {
+    const dot = document.createElement("div");
+    dot.className = "dot";
+    dot.style.left = positions[i].x + "px";
+    dot.style.top = positions[i].y + "px";
+    dot.style.width = positions[i].size + "px";
+    dot.style.height = positions[i].size + "px";
+    dot.style.transform = "translate(-50%, -50%)";
+    slide.appendChild(dot);
+  }
+  
+  // Display the numeral at the bottom
+  const numeralDiv = document.createElement("div");
+  numeralDiv.className = "numeral";
+  numeralDiv.innerText = numeral;
+  slide.appendChild(numeralDiv);
+}
+
+function getNextSequence() {
+  sequenceCounter++;
+  let count, numeral;
+  
+  // Every 3rd display shows 6 dots
+  if (sequenceCounter % 3 === 0) {
+    count = 6;
+    // 50% match, 50% don't match
+    if (Math.random() < 0.5) {
+      numeral = 6;
+    } else {
+      const others = [5, 7];
+      numeral = others[Math.floor(Math.random() * others.length)];
+    }
+  } else {
+    // Other displays: 5 or 7 with 50% match rate
+    const choices = [5, 7];
+    count = choices[Math.floor(Math.random() * choices.length)];
+    
+    // 50% of displays match
+    if (Math.random() < 0.5) {
+      numeral = count;
+    } else {
+      let wrongChoices = [5, 6, 7].filter(n => n !== count);
+      numeral = wrongChoices[Math.floor(Math.random() * wrongChoices.length)];
+    }
+  }
+  
+  return { count, numeral };
+}
+
+function next() {
+  if (!running) return;
+  
+  const sequence = getNextSequence();
+  displayScene(sequence.count, sequence.numeral);
+  
+  timer = setTimeout(next, 3000);
+}
+
+function start() {
+  if (running) return;
+  running = true;
+  sequenceCounter = 0;
+  next();
+}
+
+function pause() {
+  running = false;
+  clearTimeout(timer);
+}
+
+clearSlide();
+</script>
+
+</body>
+</html>
