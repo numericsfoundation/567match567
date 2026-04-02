@@ -54,29 +54,22 @@ h1 {
   top: 0;
   left: 0;
   width: 100%;
-  height: 320px;
-  z-index: 1;
+  height: 400px;
+  z-index: 10;
 }
 
 .dot {
   position: absolute;
   border-radius: 50%;
-  background: #000;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.3);
-  animation: fadeInDot 0.55s ease forwards;
+  transform: translate(-50%, -50%) scale(0.85);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-@keyframes fadeInDot {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
+.dot.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .numeral {
@@ -89,8 +82,13 @@ h1 {
   color: #2E75B6;
   text-shadow: 2px 3px 3px rgba(0, 0, 0, 0.25);
   line-height: 1;
-  z-index: 20;
-  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.numeral.show {
+  opacity: 1;
 }
 
 .controls {
@@ -140,99 +138,70 @@ const slide = document.getElementById("slide");
 
 let timer = null;
 let running = false;
+let sequenceCounter = 0;
 
 const dotSizes = [50, 65, 80, 95, 110];
+const GREEN = "#2ecc71";
+const BLACK = "#000000";
 
-function clearSlide() {
-  slide.innerHTML = "";
-}
-
-function weightedChoice(items) {
-  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-  let random = Math.random() * totalWeight;
-
-  for (const item of items) {
-    random -= item.weight;
-    if (random <= 0) {
-      return item.value;
-    }
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-
-  return items[items.length - 1].value;
-}
-
-function chooseCount() {
-  return weightedChoice([
-    { value: 6, weight: 0.50 },
-    { value: 5, weight: 0.25 },
-    { value: 7, weight: 0.25 }
-  ]);
-}
-
-function chooseNumeral(count) {
-  const isCorrect = Math.random() < 0.65;
-
-  if (isCorrect) {
-    return count;
-  }
-
-  if (count === 6) {
-    return Math.random() < 0.5 ? 5 : 7;
-  }
-
-  if (count === 5) {
-    return Math.random() < 0.5 ? 6 : 7;
-  }
-
-  return Math.random() < 0.5 ? 5 : 6;
+  return arr;
 }
 
 function generateDotPositions(count) {
   const positions = [];
   const slideWidth = slide.offsetWidth;
-  const containerHeight = 320;
-  const paddingLeftRight = 90;
-  const paddingTop = 45;
-  const paddingBottom = 45;
-  const minDistance = 150;
+  const containerHeight = 400;
+  const minDistance = 140;
 
   for (let i = 0; i < count; i++) {
-    let x;
-    let y;
-    let valid = false;
+    let x, y, valid;
     let attempts = 0;
-    const size = dotSizes[i % dotSizes.length];
 
-    while (!valid && attempts < 400) {
-      attempts++;
+    do {
       valid = true;
+      attempts++;
+      x = 80 + Math.random() * (slideWidth - 160);
+      y = 60 + Math.random() * (containerHeight - 120);
 
-      x = paddingLeftRight + Math.random() * (slideWidth - paddingLeftRight * 2);
-      y = paddingTop + Math.random() * (containerHeight - paddingTop - paddingBottom);
-
-      for (const pos of positions) {
+      for (let pos of positions) {
         const dx = x - pos.x;
         const dy = y - pos.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const requiredDistance = (size + pos.size) / 2 + minDistance / 2;
 
-        if (distance < requiredDistance) {
+        if (distance < minDistance) {
           valid = false;
           break;
         }
       }
-    }
+    } while (!valid && attempts < 300);
 
-    if (!valid) {
-      const bandSpacing = slideWidth / (count + 1);
-      x = bandSpacing * (i + 1);
-      y = 90 + (i % 2) * 100;
+    if (valid) {
+      const size = dotSizes[i % dotSizes.length];
+      positions.push({ x, y, size });
     }
-
-    positions.push({ x, y, size });
   }
 
   return positions;
+}
+
+function clearSlide() {
+  slide.innerHTML = "";
+}
+
+function getDotColors(count) {
+  const greenCount = Math.ceil(count / 2);
+  const blackCount = count - greenCount;
+  const colors = [
+    ...Array(greenCount).fill(GREEN),
+    ...Array(blackCount).fill(BLACK)
+  ];
+  return shuffleArray(colors);
 }
 
 function displayScene(count, numeral) {
@@ -242,6 +211,7 @@ function displayScene(count, numeral) {
   dotsContainer.className = "dots-container";
 
   const positions = generateDotPositions(count);
+  const colors = getDotColors(positions.length);
 
   for (let i = 0; i < positions.length; i++) {
     const dot = document.createElement("div");
@@ -250,21 +220,54 @@ function displayScene(count, numeral) {
     dot.style.top = positions[i].y + "px";
     dot.style.width = positions[i].size + "px";
     dot.style.height = positions[i].size + "px";
-    dot.style.animationDelay = (i * 0.08) + "s";
+    dot.style.background = colors[i];
     dotsContainer.appendChild(dot);
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        dot.classList.add("show");
+      }, i * 35);
+    });
   }
 
   slide.appendChild(dotsContainer);
 
   const numeralDiv = document.createElement("div");
   numeralDiv.className = "numeral";
-  numeralDiv.textContent = numeral;
+  numeralDiv.innerText = numeral;
   slide.appendChild(numeralDiv);
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      numeralDiv.classList.add("show");
+    }, 180);
+  });
 }
 
 function getNextSequence() {
-  const count = chooseCount();
-  const numeral = chooseNumeral(count);
+  sequenceCounter++;
+  let count, numeral;
+
+  if (sequenceCounter % 2 === 1) {
+    count = 6;
+    if (Math.random() < 0.5) {
+      numeral = 6;
+    } else {
+      const others = [5, 7];
+      numeral = others[Math.floor(Math.random() * others.length)];
+    }
+  } else {
+    const choices = [5, 7];
+    count = choices[Math.floor(Math.random() * choices.length)];
+
+    if (Math.random() < 0.5) {
+      numeral = count;
+    } else {
+      const wrongChoices = [5, 6, 7].filter(n => n !== count);
+      numeral = wrongChoices[Math.floor(Math.random() * wrongChoices.length)];
+    }
+  }
+
   return { count, numeral };
 }
 
@@ -280,6 +283,7 @@ function next() {
 function start() {
   if (running) return;
   running = true;
+  sequenceCounter = 0;
   next();
 }
 
