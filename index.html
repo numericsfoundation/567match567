@@ -96,7 +96,7 @@ button {
   border-radius: 8px;
   font-weight: bold;
   transition: transform 0.2s, box-shadow 0.2s;
-  font-family: 'Century Gothic', 'Trebucheit MS', sans-serif;
+  font-family: 'Century Gothic', 'Trebuchet MS', sans-serif;
 }
 
 button:hover {
@@ -127,7 +127,6 @@ const slide = document.getElementById("slide");
 
 let timer = null;
 let running = false;
-let sequenceCounter = 0;
 
 const dotSizes = [50, 65, 80, 95, 110];
 
@@ -135,7 +134,7 @@ function generateDotPositions(count) {
   const positions = [];
   const slideWidth = slide.offsetWidth;
   const containerHeight = 400;
-  const minDistance = 280;
+  const minDistance = 140;
   
   for (let i = 0; i < count; i++) {
     let x, y, valid;
@@ -157,7 +156,7 @@ function generateDotPositions(count) {
           break;
         }
       }
-    } while (!valid && attempts < 200);
+    } while (!valid && attempts < 300);
     
     if (valid) {
       const size = dotSizes[i % dotSizes.length];
@@ -199,29 +198,48 @@ function displayScene(count, numeral) {
   slide.appendChild(numeralDiv);
 }
 
-function getNextSequence() {
-  sequenceCounter++;
-  let count, numeral;
+function weightedChoice(items) {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  let random = Math.random() * totalWeight;
   
-  if (sequenceCounter % 3 === 0) {
-    count = 6;
-    if (Math.random() < 0.5) {
-      numeral = 6;
-    } else {
-      const others = [5, 7];
-      numeral = others[Math.floor(Math.random() * others.length)];
-    }
-  } else {
-    const choices = [5, 7];
-    count = choices[Math.floor(Math.random() * choices.length)];
-    
-    if (Math.random() < 0.5) {
-      numeral = count;
-    } else {
-      let wrongChoices = [5, 6, 7].filter(n => n !== count);
-      numeral = wrongChoices[Math.floor(Math.random() * wrongChoices.length)];
+  for (const item of items) {
+    random -= item.weight;
+    if (random <= 0) {
+      return item.value;
     }
   }
+  
+  return items[items.length - 1].value;
+}
+
+function getNumeralForCount(count) {
+  const isCorrect = Math.random() < 0.65;
+  
+  if (isCorrect) {
+    return count;
+  }
+  
+  if (count === 6) {
+    return Math.random() < 0.5 ? 5 : 7;
+  }
+  
+  if (count === 5) {
+    return Math.random() < 0.5 ? 6 : 7;
+  }
+  
+  if (count === 7) {
+    return Math.random() < 0.5 ? 5 : 6;
+  }
+}
+
+function getNextSequence() {
+  const count = weightedChoice([
+    { value: 6, weight: 0.50 },
+    { value: 5, weight: 0.25 },
+    { value: 7, weight: 0.25 }
+  ]);
+  
+  const numeral = getNumeralForCount(count);
   
   return { count, numeral };
 }
@@ -238,7 +256,6 @@ function next() {
 function start() {
   if (running) return;
   running = true;
-  sequenceCounter = 0;
   next();
 }
 
