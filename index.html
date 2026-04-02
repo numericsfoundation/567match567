@@ -54,8 +54,8 @@ h1 {
   top: 0;
   left: 0;
   width: 100%;
-  height: 400px;
-  z-index: 10;
+  height: 320px;
+  z-index: 1;
 }
 
 .dot {
@@ -63,6 +63,20 @@ h1 {
   border-radius: 50%;
   background: #000;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+  animation: fadeInDot 0.55s ease forwards;
+}
+
+@keyframes fadeInDot {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .numeral {
@@ -75,7 +89,8 @@ h1 {
   color: #2E75B6;
   text-shadow: 2px 3px 3px rgba(0, 0, 0, 0.25);
   line-height: 1;
-  z-index: 1;
+  z-index: 20;
+  pointer-events: none;
 }
 
 .controls {
@@ -113,9 +128,7 @@ button:active {
 
 <div class="container">
   <h1>Does the numeral match the number of dots?</h1>
-  
   <div class="slide" id="slide"></div>
-  
   <div class="controls">
     <button onclick="start()">▶ Start</button>
     <button onclick="pause()">⏸ Pause</button>
@@ -130,55 +143,106 @@ let running = false;
 
 const dotSizes = [50, 65, 80, 95, 110];
 
-function generateDotPositions(count) {
-  const positions = [];
-  const slideWidth = slide.offsetWidth;
-  const containerHeight = 400;
-  const minDistance = 140;
-  
-  for (let i = 0; i < count; i++) {
-    let x, y, valid;
-    let attempts = 0;
-    
-    do {
-      valid = true;
-      attempts++;
-      x = 80 + Math.random() * (slideWidth - 160);
-      y = 60 + Math.random() * (containerHeight - 120);
-      
-      for (let pos of positions) {
-        const dx = x - pos.x;
-        const dy = y - pos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < minDistance) {
-          valid = false;
-          break;
-        }
-      }
-    } while (!valid && attempts < 300);
-    
-    if (valid) {
-      const size = dotSizes[i % dotSizes.length];
-      positions.push({ x, y, size });
-    }
-  }
-  
-  return positions;
-}
-
 function clearSlide() {
   slide.innerHTML = "";
 }
 
+function weightedChoice(items) {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const item of items) {
+    random -= item.weight;
+    if (random <= 0) {
+      return item.value;
+    }
+  }
+
+  return items[items.length - 1].value;
+}
+
+function chooseCount() {
+  return weightedChoice([
+    { value: 6, weight: 0.50 },
+    { value: 5, weight: 0.25 },
+    { value: 7, weight: 0.25 }
+  ]);
+}
+
+function chooseNumeral(count) {
+  const isCorrect = Math.random() < 0.65;
+
+  if (isCorrect) {
+    return count;
+  }
+
+  if (count === 6) {
+    return Math.random() < 0.5 ? 5 : 7;
+  }
+
+  if (count === 5) {
+    return Math.random() < 0.5 ? 6 : 7;
+  }
+
+  return Math.random() < 0.5 ? 5 : 6;
+}
+
+function generateDotPositions(count) {
+  const positions = [];
+  const slideWidth = slide.offsetWidth;
+  const containerHeight = 320;
+  const paddingLeftRight = 90;
+  const paddingTop = 45;
+  const paddingBottom = 45;
+  const minDistance = 150;
+
+  for (let i = 0; i < count; i++) {
+    let x;
+    let y;
+    let valid = false;
+    let attempts = 0;
+    const size = dotSizes[i % dotSizes.length];
+
+    while (!valid && attempts < 400) {
+      attempts++;
+      valid = true;
+
+      x = paddingLeftRight + Math.random() * (slideWidth - paddingLeftRight * 2);
+      y = paddingTop + Math.random() * (containerHeight - paddingTop - paddingBottom);
+
+      for (const pos of positions) {
+        const dx = x - pos.x;
+        const dy = y - pos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const requiredDistance = (size + pos.size) / 2 + minDistance / 2;
+
+        if (distance < requiredDistance) {
+          valid = false;
+          break;
+        }
+      }
+    }
+
+    if (!valid) {
+      const bandSpacing = slideWidth / (count + 1);
+      x = bandSpacing * (i + 1);
+      y = 90 + (i % 2) * 100;
+    }
+
+    positions.push({ x, y, size });
+  }
+
+  return positions;
+}
+
 function displayScene(count, numeral) {
   clearSlide();
-  
+
   const dotsContainer = document.createElement("div");
   dotsContainer.className = "dots-container";
-  
+
   const positions = generateDotPositions(count);
-  
+
   for (let i = 0; i < positions.length; i++) {
     const dot = document.createElement("div");
     dot.className = "dot";
@@ -186,70 +250,30 @@ function displayScene(count, numeral) {
     dot.style.top = positions[i].y + "px";
     dot.style.width = positions[i].size + "px";
     dot.style.height = positions[i].size + "px";
-    dot.style.transform = "translate(-50%, -50%)";
+    dot.style.animationDelay = (i * 0.08) + "s";
     dotsContainer.appendChild(dot);
   }
-  
+
   slide.appendChild(dotsContainer);
-  
+
   const numeralDiv = document.createElement("div");
   numeralDiv.className = "numeral";
-  numeralDiv.innerText = numeral;
+  numeralDiv.textContent = numeral;
   slide.appendChild(numeralDiv);
 }
 
-function weightedChoice(items) {
-  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-  let random = Math.random() * totalWeight;
-  
-  for (const item of items) {
-    random -= item.weight;
-    if (random <= 0) {
-      return item.value;
-    }
-  }
-  
-  return items[items.length - 1].value;
-}
-
-function getNumeralForCount(count) {
-  const isCorrect = Math.random() < 0.65;
-  
-  if (isCorrect) {
-    return count;
-  }
-  
-  if (count === 6) {
-    return Math.random() < 0.5 ? 5 : 7;
-  }
-  
-  if (count === 5) {
-    return Math.random() < 0.5 ? 6 : 7;
-  }
-  
-  if (count === 7) {
-    return Math.random() < 0.5 ? 5 : 6;
-  }
-}
-
 function getNextSequence() {
-  const count = weightedChoice([
-    { value: 6, weight: 0.50 },
-    { value: 5, weight: 0.25 },
-    { value: 7, weight: 0.25 }
-  ]);
-  
-  const numeral = getNumeralForCount(count);
-  
+  const count = chooseCount();
+  const numeral = chooseNumeral(count);
   return { count, numeral };
 }
 
 function next() {
   if (!running) return;
-  
+
   const sequence = getNextSequence();
   displayScene(sequence.count, sequence.numeral);
-  
+
   timer = setTimeout(next, 3000);
 }
 
